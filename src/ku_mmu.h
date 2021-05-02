@@ -8,7 +8,25 @@ typedef struct NODE{
 
 void* pmem;
 void* swapSpace;
-node* freeListAddress;
+node* freeHeadAddress;
+node* freeTailAddress;
+
+void addFreeList(void* pgAddress){
+    node* addNode = (node*)malloc(sizeof(node));
+    addNode->address = pgAddress;
+    addNode->next = NULL;
+    freeTailAddress->next = addNode;
+    freeTailAddress = addNode;
+}
+
+void* popFreeList(){
+    node* popNode = freeHeadAddress;
+    void* getPgAddress = popNode->address;
+    freeHeadAddress = freeHeadAddress->next;
+    free(popNode);
+
+    return getPgAddress;
+}
 
 node* freeList(int size){
     node* current;
@@ -16,14 +34,17 @@ node* freeList(int size){
     head->address = pmem;
     head->next = NULL;
     current = head;
-    printf("%p\n", head->address);
+    //printf("%p\n", head->address);
     for(int i = 4; i < 4 * size; i+=4){
         node* newNode = (node*)malloc(sizeof(node));
         newNode->address = pmem + i;
         newNode->next = NULL;
+        if(i == 4 * size -4){
+            freeTailAddress = newNode;
+        }
         head->next = newNode;
         head = newNode;
-        printf("%p\n", head->address);
+        //printf("%p\n", head->address);
     }
 
     head = current;
@@ -42,17 +63,9 @@ void* ku_mmu_init(unsigned int pmemSize, unsigned int swapSize){
     pmem = malloc(pmemSize);
     swapSpace = malloc(swapSize);
     memset(pmem, 0, pmemSize);
-    freeListAddress = freeList(pageNum);
-
+    freeHeadAddress = freeList(pageNum);
+    
     return pmem;
-}
-
-void addList(){
-
-}
-
-void popList(){
-
 }
 
 int ku_run_proc(){
