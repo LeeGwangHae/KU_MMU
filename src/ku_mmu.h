@@ -6,9 +6,9 @@ typedef struct NODE{
     struct NODE* next;
 }node;
 
-typedef struct KU_PTE{
-    char info;
-}ku_pte;
+// typedef struct KU_PTE{
+//     char info;
+// }ku_pte;
 
 typedef struct KU_PCB{
     char pid;
@@ -160,10 +160,49 @@ int ku_run_proc(char pid, void** ku_cr3){
         // printf("%p\n", check->pdbr);
         *ku_cr3 = check->pdbr;
     }
-    
+    // printf("TEST\n");
     return 0;
 }
 
-int ku_page_fault(){
+int ku_page_fault(char pid, char va){
+    //printf("TEST\n");
+    ku_pcb* tmp = searchPCB(pid);
+    char pdIndex = (va & 0b11000000) >> 6;
+    char pmdIndex = (va & 0b00110000) >> 4;
+    char ptIndex = (va & 0b00001100) >> 2;
+    char pgIndex = va & 0b00000011;
+    void* pmd;
+    void* pt;
+    void* page;
+    //printf("TEST1\n");
+    char pde = *(char*)(tmp->pdbr + pdIndex);
+    
+    //printf("TEST2\n");
+    if(pde == 0b00000000){
+        pmd = popFreeList();
+        *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
+        //printf("1\n");
+    }else{
+        pmd = pmem + (pde >> 2) * 4;
+    }
+    //printf("pmd : %p\n", pmd);
+    char pmde = *(char*)(pmd + pmdIndex);
+    if(pmde == 0b00000000){
+        pt = popFreeList();
+        *(char*)(pmd + pmdIndex) = (((char)(pt - pmem) / 4) << 2) | 0b00000001;
+        //printf("2\n");
+    }else{
+        pt = pmem +(pmde >> 2) * 4;
+    }
+    //printf("pt : %p\n", pt);
+    char pte = *(char*)(pt + ptIndex);
+    if(pte == 0b00000000){
+        page = popFreeList();
+        *(char*)(pt + ptIndex) = (((char)(page - pmem) / 4) << 2) | 0b00000001;
+        //printf("3\n");
+    }else{
+        page = pmem + (pte >> 2) * 4;
+    }
 
+    return 0;
 }
