@@ -32,12 +32,13 @@ ku_pcb* searchPCB(char pid){
 
     do{ 
         if(tmp->pid == pcbHead->pid){
+            tmp->pdbr = pcbHead->pdbr;
             foundPCB = tmp;
             break;
         }else{
             pcbHead = pcbHead->next;
         }
-    }while(tmp != NULL);
+    }while(pcbHead != NULL);
     pcbHead = current;
 
     return foundPCB;
@@ -45,7 +46,7 @@ ku_pcb* searchPCB(char pid){
 
 void addPCB(ku_pcb* process){
     ku_pcb* addProcess = (ku_pcb*)malloc(sizeof(ku_pcb));
-
+    // printf("4\n");
     addProcess->pid = process->pid;
     addProcess->pdbr = process->pdbr;
     addProcess->next = NULL;
@@ -135,20 +136,29 @@ void* ku_mmu_init(unsigned int pmemSize, unsigned int swapSize){
 }
 
 int ku_run_proc(char pid, void** ku_cr3){
-    printf("1\n");
-    ku_pcb* tmp = searchPCB(pid);
-    printf("ad%p\n", tmp);
-
-    if(tmp->pid == 0){
-        printf("ad%p\n", pcbHead);
+    // printf("1\n");
+    ku_pcb* tmp = (ku_pcb*)malloc(sizeof(ku_pcb));
+    ku_pcb* check = searchPCB(pid);
+    // printf("check: %p\n", tmp);
+    // printf("tmp: %p\n", tmp);
+    if(check == NULL){
+        // printf("before : %p\n", pcbHead);
+        // printf("before : %p\n", pcbTail);
         tmp->pid = pid;
         tmp->pdbr = popFreeList();
         tmp->next = NULL;
+        // printf("%d\n", tmp->pid);
+        // printf("%p\n", tmp->pdbr);
+        // printf("%p\n", tmp->next);
         addPCB(tmp);
-        printf("3\n");
+        // printf("after : %p\n", pcbHead);
+        // printf("after : %p\n", pcbTail);
+        // printf("3\n");
         ku_run_proc(pid, &(*ku_cr3));
     }else{
-        *ku_cr3 = tmp->pdbr;
+        // printf("5\n");
+        // printf("%p\n", check->pdbr);
+        *ku_cr3 = check->pdbr;
     }
     
     return 0;
