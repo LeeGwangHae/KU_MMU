@@ -185,7 +185,7 @@ int ku_page_fault(char pid, char va){
             *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
         }else{
             popPage = popUsePage();
-            *(swapHeadAddress + ((popPage->bit & 0b11111110) >> 1)) = ;
+            *(swapHeadAddress + ((popPage->bit & 0b11111110) >> 1) * 4) = (popPage->bit & 0b11111110);
             pmd = popPage->address;
             *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
         }
