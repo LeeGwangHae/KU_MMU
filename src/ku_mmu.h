@@ -6,15 +6,17 @@ typedef struct NODE{
     struct NODE* next;
 }node;
 
-// typedef struct KU_PTE{
-//     char info;
-// }ku_pte;
-
 typedef struct KU_PCB{
     char pid;
     void *pdbr;
     struct KU_PCB* next;
 }ku_pcb;
+
+typedef struct DATA{
+    void* address;
+    char bit;
+    struct DATA* next;
+}data;
 
 void* pmem = 0;
 node* swapHeadAddress;
@@ -23,6 +25,8 @@ node* freeHeadAddress;
 node* freeTailAddress;
 ku_pcb* pcbHead;
 ku_pcb* pcbTail;
+data* usingPageHead;
+data* usingPageTail;
 
 ku_pcb* searchPCB(char pid){
     ku_pcb* foundPCB = NULL;
@@ -46,7 +50,6 @@ ku_pcb* searchPCB(char pid){
 
 void addPCB(ku_pcb* process){
     ku_pcb* addProcess = (ku_pcb*)malloc(sizeof(ku_pcb));
-    // printf("4\n");
     addProcess->pid = process->pid;
     addProcess->pdbr = process->pdbr;
     addProcess->next = NULL;
@@ -67,9 +70,23 @@ void* popSwapList(){
     node* popNode = swapHeadAddress;
     void* getSwapAddress = popNode->address;
     freeHeadAddress = freeHeadAddress->next;
-    //free(popNode);
 
     return getSwapAddress;
+}
+
+data* popUsePage(){
+    data* popData = usingPageHead;
+    usingPageHead = usingPageHead->next;
+
+    return popData;
+}
+
+void addUsePage(void* pageAddress, char bit){
+    data* addAddress = (data*)malloc(sizeof(data));
+    addAddress->address = pageAddress;
+    addAddress->next = NULL;
+    usingPageTail->next = addAddress;
+    usingPageTail = addAddress;
 }
 
 node* swapList(int pageNum){
@@ -78,7 +95,6 @@ node* swapList(int pageNum){
     head->address = swapHeadAddress;
     head->next = NULL;
     current = head;
-    //printf("%p\n", head->address);
     for(int i = 4; i < 4 * pageNum; i+=4){
         node* newNode = (node*)malloc(sizeof(node));
         newNode->address = NULL;
@@ -97,7 +113,6 @@ node* freeList(int pageNum){
     head->address = pmem;
     head->next = NULL;
     current = head;
-    //printf("%p\n", head->address);
     for(int i = 4; i < 4 * pageNum; i+=4){
         node* newNode = (node*)malloc(sizeof(node));
         newNode->address = pmem + i;
@@ -107,7 +122,6 @@ node* freeList(int pageNum){
         }
         head->next = newNode;
         head = newNode;
-        //printf("%p\n", head->address);
     }
     head = current;
 
@@ -131,41 +145,29 @@ void* ku_mmu_init(unsigned int pmemSize, unsigned int swapSize){
     pcbHead->pdbr = NULL;
     pcbHead->next = NULL;
     pcbTail = pcbHead;
+    usingPageHead = (node*)malloc(sizeof(node));
+    usingPageHead->address = NULL;
+    usingPageTail = usingPageHead;
 
     return pmem;
 }
 
 int ku_run_proc(char pid, void** ku_cr3){
-    // printf("1\n");
     ku_pcb* tmp = (ku_pcb*)malloc(sizeof(ku_pcb));
     ku_pcb* check = searchPCB(pid);
-    // printf("check: %p\n", tmp);
-    // printf("tmp: %p\n", tmp);
     if(check == NULL){
-        // printf("before : %p\n", pcbHead);
-        // printf("before : %p\n", pcbTail);
         tmp->pid = pid;
         tmp->pdbr = popFreeList();
         tmp->next = NULL;
-        // printf("%d\n", tmp->pid);
-        // printf("%p\n", tmp->pdbr);
-        // printf("%p\n", tmp->next);
         addPCB(tmp);
-        // printf("after : %p\n", pcbHead);
-        // printf("after : %p\n", pcbTail);
-        // printf("3\n");
         ku_run_proc(pid, &(*ku_cr3));
     }else{
-        // printf("5\n");
-        // printf("%p\n", check->pdbr);
         *ku_cr3 = check->pdbr;
     }
-    // printf("TEST\n");
     return 0;
 }
 
 int ku_page_fault(char pid, char va){
-    //printf("TEST\n");
     ku_pcb* tmp = searchPCB(pid);
     char pdIndex = (va & 0b11000000) >> 6;
     char pmdIndex = (va & 0b00110000) >> 4;
@@ -174,32 +176,43 @@ int ku_page_fault(char pid, char va){
     void* pmd;
     void* pt;
     void* page;
-    //printf("TEST1\n");
     char pde = *(char*)(tmp->pdbr + pdIndex);
-    
-    //printf("TEST2\n");
+    data* popPage;
+
     if(pde == 0b00000000){
-        pmd = popFreeList();
-        *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
-        //printf("1\n");
+        if(freeHeadAddress != NULL){
+            pmd = popFreeList();
+            *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
+        }else{
+            popPage = popUsePage();
+            *(swapHeadAddress + ((popPage->bit & 0b11111110) >> 1)) = ;
+            pmd = popPage->address;
+            *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
+        }
     }else{
         pmd = pmem + (pde >> 2) * 4;
     }
-    //printf("pmd : %p\n", pmd);
     char pmde = *(char*)(pmd + pmdIndex);
     if(pmde == 0b00000000){
-        pt = popFreeList();
-        *(char*)(pmd + pmdIndex) = (((char)(pt - pmem) / 4) << 2) | 0b00000001;
-        //printf("2\n");
+        if(freeHeadAddress != NULL){
+            pt = popFreeList();
+            *(char*)(pmd + pmdIndex) = (((char)(pt - pmem) / 4) << 2) | 0b00000001;
+        }else{
+
+        }
     }else{
         pt = pmem +(pmde >> 2) * 4;
     }
-    //printf("pt : %p\n", pt);
     char pte = *(char*)(pt + ptIndex);
     if(pte == 0b00000000){
-        page = popFreeList();
-        *(char*)(pt + ptIndex) = (((char)(page - pmem) / 4) << 2) | 0b00000001;
-        //printf("3\n");
+        if(freeHeadAddress != NULL){
+            page = popFreeList();
+            *(char*)(pt + ptIndex) = (((char)(page - pmem) / 4) << 2) | 0b00000001;
+            addUsePage(page, *(char*)(pt + ptIndex));
+        }else{
+            //tmp = *(char*)(pt + ptIndex);
+
+        }
     }else{
         page = pmem + (pte >> 2) * 4;
     }
