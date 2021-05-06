@@ -66,11 +66,19 @@ void* popFreeList(){
 
     return getPgAddress;
 }
+void addSwapList(void* address){
+    node* addNode = (node*)malloc((sizeof(node)));
+    addNode->address = address;
+    addNode->next = NULL;
+    swapTailAddress->next = addNode;
+    swapTailAddress = addNode;
+}
 
 void* popSwapList(){
     node* popNode = swapHeadAddress;
     void* getSwapAddress = popNode->address;
-    freeHeadAddress = freeHeadAddress->next;
+    swapHeadAddress = swapHeadAddress->next;
+    free(popNode);
 
     return getSwapAddress;
 }
@@ -87,8 +95,13 @@ void addUsePage(void* pageAddress, char* bit){
     addAddress->address = pageAddress;
     addAddress->pte = bit;
     addAddress->next = NULL;
-    usingPageTail->next = addAddress;
-    usingPageTail = addAddress;
+    if(usingPageHead == NULL){
+        usingPageHead = addAddress;
+        usingPageTail = usingPageHead;
+    }else{
+        usingPageTail->next = addAddress;
+        usingPageTail = addAddress;
+    }
 }
 
 node* swapList(int pageNum){
@@ -99,7 +112,7 @@ node* swapList(int pageNum){
     current = head;
     for(int i = 4; i < 4 * pageNum; i+=4){
         node* newNode = (node*)malloc(sizeof(node));
-        newNode->address = NULL;
+        newNode->address = swapSpace + i;
         newNode->next = NULL;
         if(i == 4 * pageNum -4){
             swapTailAddress = newNode;
@@ -107,6 +120,7 @@ node* swapList(int pageNum){
         head->next = newNode;
         head = newNode;
     }
+    head = current;
 
     return head;
 }
@@ -150,9 +164,8 @@ void* ku_mmu_init(unsigned int pmemSize, unsigned int swapSize){
     pcbHead->pdbr = NULL;
     pcbHead->next = NULL;
     pcbTail = pcbHead;
-    usingPageHead = (data*)malloc(sizeof(data));
-    usingPageHead->address = NULL;
-    usingPageTail = usingPageHead;
+    // usingPageHead = (data*)malloc(sizeof(data));
+    // usingPageHead->address = NULL;
 
     return pmem;
 }
@@ -182,9 +195,15 @@ int ku_page_fault(char pid, char va){
     void* pt;
     void* page;
     void* swapOutAddress;
-    char pde = *(char*)(tmp->pdbr + pdIndex);
+    char pde;
+    char pmde;
+    char pte;
     data* popPage;
     void* popSwap;
+    unsigned int swapData;
+    unsigned int pmemData;
+
+    pde = *(char*)(tmp->pdbr + pdIndex);
     if(pde == 0b00000000){
         if(freeHeadAddress != NULL){
             pmd = popFreeList();
@@ -193,30 +212,30 @@ int ku_page_fault(char pid, char va){
             popPage = popUsePage();
             popSwap = popSwapList();
             memcpy(popSwap, popPage->address, 4);
-            // swapOutAddress = swapSpace + (((*(popPage->pte) & 0b11111110) >> 1) * 4);
-            // *(char*)swapOutAddress = (*(popPage->pte) & 0b11111110);
-            // pmd = popPage->address;
-            // *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
+            *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
+            pmd = popPage->address;
+            *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
         }
     }else{
         pmd = pmem + (pde >> 2) * 4;
     }
-    char pmde = *(char*)(pmd + pmdIndex);
+    pmde = *(char*)(pmd + pmdIndex);
     if(pmde == 0b00000000){
         if(freeHeadAddress != NULL){
             pt = popFreeList();
             *(char*)(pmd + pmdIndex) = (((char)(pt - pmem) / 4) << 2) | 0b00000001;
         }else{
             popPage = popUsePage();
-            swapOutAddress = swapSpace + (((*(popPage->pte) & 0b11111110) >> 1) * 4);
-            *(char*)swapOutAddress = (*(popPage->pte) & 0b11111110);
+            popSwap = popSwapList();
+            memcpy(popSwap, popPage->address, 4);
+            *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
             pt = popPage->address;
             *(char*)(pmd + pmdIndex) = (((char)(pt - pmem) / 4) << 2) | 0b00000001;
         }
     }else{
         pt = pmem +(pmde >> 2) * 4;
     }
-    char pte = *(char*)(pt + ptIndex);
+    pte = *(char*)(pt + ptIndex);
     if(pte == 0b00000000){
         if(freeHeadAddress != NULL){
             page = popFreeList();
@@ -224,14 +243,29 @@ int ku_page_fault(char pid, char va){
             addUsePage(page, (char*)(pt + ptIndex));
         }else{
             popPage = popUsePage();
-            swapOutAddress = swapSpace + (((*(popPage->pte) & 0b11111110) >> 1) * 4);
-            *(char*)swapOutAddress = (*(popPage->pte) & 0b11111110);
+            popSwap = popSwapList();
+            memcpy(popSwap, popPage->address, 4);
+            *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
             page = popPage->address;
             *(char*)(pt + ptIndex) = (((char)(page - pmem) / 4) << 2) | 0b00000001;
+            addUsePage(page, (char*)(pt + ptIndex));
         }
     }else{
-        page = pmem + (pte >> 2) * 4;
-    }
+        if((pte & 0b00000001) == 0){
+            swapData = *(unsigned int *)(swapSpace + (((pte & 0b11111110) >> 1) * 4));
+            *(unsigned int *)(swapSpace + (((pte & 0b11111110) >> 1) * 4)) = 0b00000000;
+            addSwapList(swapSpace + (((pte & 0b11111110) >> 1) * 4));
+            popPage = popUsePage();
+            pmemData =  *(unsigned int*)(popPage->address);
+            popSwap = popSwapList();
+            *(unsigned int*)(popSwap) = pmemData;
+            *(popPage ->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
+            *(char*)(pt + ptIndex) = (((char)(popPage->address - pmem) / 4) << 2) | 0b00000001;
+            addUsePage(popPage->address, (char*)(pt + ptIndex));
 
+        }else{
+            page = pmem + (pte >> 2) * 4;
+        }
+    }
     return 0;
 }
