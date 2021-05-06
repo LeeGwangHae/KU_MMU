@@ -164,8 +164,6 @@ void* ku_mmu_init(unsigned int pmemSize, unsigned int swapSize){
     pcbHead->pdbr = NULL;
     pcbHead->next = NULL;
     pcbTail = pcbHead;
-    // usingPageHead = (data*)malloc(sizeof(data));
-    // usingPageHead->address = NULL;
 
     return pmem;
 }
