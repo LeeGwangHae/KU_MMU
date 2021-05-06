@@ -184,17 +184,19 @@ int ku_page_fault(char pid, char va){
     void* swapOutAddress;
     char pde = *(char*)(tmp->pdbr + pdIndex);
     data* popPage;
-
+    void* popSwap;
     if(pde == 0b00000000){
         if(freeHeadAddress != NULL){
             pmd = popFreeList();
             *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
         }else{
             popPage = popUsePage();
-            swapOutAddress = swapSpace + (((*(popPage->pte) & 0b11111110) >> 1) * 4);
-            *(char*)swapOutAddress = (*(popPage->pte) & 0b11111110);
-            pmd = popPage->address;
-            *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
+            popSwap = popSwapList();
+            memcpy(popSwap, popPage->address, 4);
+            // swapOutAddress = swapSpace + (((*(popPage->pte) & 0b11111110) >> 1) * 4);
+            // *(char*)swapOutAddress = (*(popPage->pte) & 0b11111110);
+            // pmd = popPage->address;
+            // *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
         }
     }else{
         pmd = pmem + (pde >> 2) * 4;
