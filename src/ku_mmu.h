@@ -84,9 +84,15 @@ void* popSwapList(){
 }
 
 data* popUsePage(){
-    data* popData = usingPageHead;
-    usingPageHead = usingPageHead->next;
-
+    data* popData;
+    printf("%p\n", usingPageHead->address);
+    if(usingPageHead->address == NULL){
+        popData = NULL;
+    }else{
+        popData = usingPageHead;
+        usingPageHead = usingPageHead->next;
+    }
+    
     return popData;
 }
 
@@ -107,14 +113,14 @@ void addUsePage(void* pageAddress, char* bit){
 node* swapList(int pageNum){
     node* current;
     node* head = (node*)malloc(sizeof(node));
-    head->address = swapSpace;
+    head->address = swapSpace + 4;
     head->next = NULL;
     current = head;
-    for(int i = 4; i < 4 * pageNum; i+=4){
+    for(int i = 4; i < 4 * pageNum - 4; i+=4){
         node* newNode = (node*)malloc(sizeof(node));
-        newNode->address = swapSpace + i;
+        newNode->address = swapSpace + 4 + i;
         newNode->next = NULL;
-        if(i == 4 * pageNum -4){
+        if(i == 4 * pageNum - 8){
             swapTailAddress = newNode;
         }
         head->next = newNode;
@@ -128,14 +134,14 @@ node* swapList(int pageNum){
 node* freeList(int pageNum){
     node* current;
     node* head = (node*)malloc(sizeof(node));
-    head->address = pmem;
+    head->address = pmem + 4;
     head->next = NULL;
     current = head;
-    for(int i = 4; i < 4 * pageNum; i+=4){
+    for(int i = 4; i < 4 * pageNum - 4; i+=4){
         node* newNode = (node*)malloc(sizeof(node));
-        newNode->address = pmem + i;
+        newNode->address = pmem + 4 + i;
         newNode->next = NULL;
-        if(i == 4 * pageNum -4){
+        if(i == 4 * pageNum - 8){
             freeTailAddress = newNode;
         }
         head->next = newNode;
@@ -207,7 +213,9 @@ int ku_page_fault(char pid, char va){
             pmd = popFreeList();
             *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
         }else{
+            printf("10\n");
             popPage = popUsePage();
+            printf("11\n");
             popSwap = popSwapList();
             memcpy(popSwap, popPage->address, 4);
             *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
@@ -223,7 +231,9 @@ int ku_page_fault(char pid, char va){
             pt = popFreeList();
             *(char*)(pmd + pmdIndex) = (((char)(pt - pmem) / 4) << 2) | 0b00000001;
         }else{
+            printf("12\n");
             popPage = popUsePage();
+            printf("13\n");
             popSwap = popSwapList();
             memcpy(popSwap, popPage->address, 4);
             *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
@@ -238,15 +248,24 @@ int ku_page_fault(char pid, char va){
         if(freeHeadAddress != NULL){
             page = popFreeList();
             *(char*)(pt + ptIndex) = (((char)(page - pmem) / 4) << 2) | 0b00000001;
+            printf("1\n");
             addUsePage(page, (char*)(pt + ptIndex));
+            printf("2\n");
         }else{
+            printf("18\n");
             popPage = popUsePage();
+            printf("17\n");
+            if(popPage == NULL){
+                return 0;
+            }
             popSwap = popSwapList();
             memcpy(popSwap, popPage->address, 4);
             *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
             page = popPage->address;
             *(char*)(pt + ptIndex) = (((char)(page - pmem) / 4) << 2) | 0b00000001;
+            printf("3\n");
             addUsePage(page, (char*)(pt + ptIndex));
+            printf("4\n");
         }
     }else{
         if((pte & 0b00000001) == 0){
@@ -259,8 +278,9 @@ int ku_page_fault(char pid, char va){
             *(unsigned int*)(popSwap) = pmemData;
             *(popPage ->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
             *(char*)(pt + ptIndex) = (((char)(popPage->address - pmem) / 4) << 2) | 0b00000001;
+            printf("5\n");
             addUsePage(popPage->address, (char*)(pt + ptIndex));
-
+            printf("6\n");
         }else{
             page = pmem + (pte >> 2) * 4;
         }
