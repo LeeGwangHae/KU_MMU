@@ -85,8 +85,7 @@ void* popSwapList(){
 
 data* popUsePage(){
     data* popData;
-    printf("%p\n", usingPageHead->address);
-    if(usingPageHead->address == NULL){
+    if(usingPageHead == NULL){
         popData = NULL;
     }else{
         popData = usingPageHead;
@@ -213,9 +212,10 @@ int ku_page_fault(char pid, char va){
             pmd = popFreeList();
             *(char*)(tmp->pdbr + pdIndex) = (((char)(pmd - pmem) / 4) << 2) | 0b00000001;
         }else{
-            printf("10\n");
             popPage = popUsePage();
-            printf("11\n");
+            if(popPage == NULL){
+                return 0;
+            }
             popSwap = popSwapList();
             memcpy(popSwap, popPage->address, 4);
             *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
@@ -231,9 +231,10 @@ int ku_page_fault(char pid, char va){
             pt = popFreeList();
             *(char*)(pmd + pmdIndex) = (((char)(pt - pmem) / 4) << 2) | 0b00000001;
         }else{
-            printf("12\n");
             popPage = popUsePage();
-            printf("13\n");
+            if(popPage == NULL){
+                return 0;
+            }
             popSwap = popSwapList();
             memcpy(popSwap, popPage->address, 4);
             *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
@@ -248,13 +249,9 @@ int ku_page_fault(char pid, char va){
         if(freeHeadAddress != NULL){
             page = popFreeList();
             *(char*)(pt + ptIndex) = (((char)(page - pmem) / 4) << 2) | 0b00000001;
-            printf("1\n");
             addUsePage(page, (char*)(pt + ptIndex));
-            printf("2\n");
         }else{
-            printf("18\n");
             popPage = popUsePage();
-            printf("17\n");
             if(popPage == NULL){
                 return 0;
             }
@@ -263,9 +260,7 @@ int ku_page_fault(char pid, char va){
             *(popPage->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
             page = popPage->address;
             *(char*)(pt + ptIndex) = (((char)(page - pmem) / 4) << 2) | 0b00000001;
-            printf("3\n");
             addUsePage(page, (char*)(pt + ptIndex));
-            printf("4\n");
         }
     }else{
         if((pte & 0b00000001) == 0){
@@ -273,14 +268,15 @@ int ku_page_fault(char pid, char va){
             *(unsigned int *)(swapSpace + (((pte & 0b11111110) >> 1) * 4)) = 0b00000000;
             addSwapList(swapSpace + (((pte & 0b11111110) >> 1) * 4));
             popPage = popUsePage();
+            if(popPage == NULL){
+                return 0;
+            }
             pmemData =  *(unsigned int*)(popPage->address);
             popSwap = popSwapList();
             *(unsigned int*)(popSwap) = pmemData;
             *(popPage ->pte) = (((char)(popSwap - swapSpace) / 4) << 1);
             *(char*)(pt + ptIndex) = (((char)(popPage->address - pmem) / 4) << 2) | 0b00000001;
-            printf("5\n");
             addUsePage(popPage->address, (char*)(pt + ptIndex));
-            printf("6\n");
         }else{
             page = pmem + (pte >> 2) * 4;
         }
