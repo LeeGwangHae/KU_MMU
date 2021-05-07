@@ -4,36 +4,36 @@
 typedef struct NODE{
     void* address;
     struct NODE* next;
-}node;
+}ku_mmu_node;
 
 typedef struct KU_PCB{
     char pid;
     void *pdbr;
     struct KU_PCB* next;
-}ku_pcb;
+}ku_mmu_pcb;
 
 typedef struct DATA{
     void* address;
     char* pte;
     struct DATA* next;
-}data;
+}ku_mmu_data;
 
 void* ku_mmu_pmem = 0;
 void* ku_mmu_swapSpace = 0;
-node* ku_mmu_swapHeadAddress;
-node* ku_mmu_swapTailAddress;
-node* ku_mmu_freeHeadAddress;
-node* ku_mmu_freeTailAddress;
-ku_pcb* ku_mmu_pcbHead;
-ku_pcb* ku_mmu_pcbTail;
-data* ku_mmu_usingPageHead;
-data* ku_mmu_usingPageTail;
+ku_mmu_node* ku_mmu_swapHeadAddress;
+ku_mmu_node* ku_mmu_swapTailAddress;
+ku_mmu_node* ku_mmu_freeHeadAddress;
+ku_mmu_node* ku_mmu_freeTailAddress;
+ku_mmu_pcb* ku_mmu_pcbHead;
+ku_mmu_pcb* ku_mmu_pcbTail;
+ku_mmu_data* ku_mmu_usingPageHead;
+ku_mmu_data* ku_mmu_usingPageTail;
 
-ku_pcb* searchPCB(char pid){
-    ku_pcb* foundPCB = NULL;
-    ku_pcb* tmp = (ku_pcb*)malloc(sizeof(ku_pcb));
+ku_mmu_pcb* searchPCB(char pid){
+    ku_mmu_pcb* foundPCB = NULL;
+    ku_mmu_pcb* tmp = (ku_mmu_pcb*)malloc(sizeof(ku_mmu_pcb));
     tmp->pid = pid;
-    ku_pcb* current = ku_mmu_pcbHead;
+    ku_mmu_pcb* current = ku_mmu_pcbHead;
 
     do{ 
         if(tmp->pid == ku_mmu_pcbHead->pid){
@@ -49,8 +49,8 @@ ku_pcb* searchPCB(char pid){
     return foundPCB;
 }
 
-void addPCB(ku_pcb* process){
-    ku_pcb* addProcess = (ku_pcb*)malloc(sizeof(ku_pcb));
+void addPCB(ku_mmu_pcb* process){
+    ku_mmu_pcb* addProcess = (ku_mmu_pcb*)malloc(sizeof(ku_mmu_pcb));
     addProcess->pid = process->pid;
     addProcess->pdbr = process->pdbr;
     addProcess->next = NULL;
@@ -59,7 +59,7 @@ void addPCB(ku_pcb* process){
 }
 
 void* popFreeList(){
-    node* popNode = ku_mmu_freeHeadAddress;
+    ku_mmu_node* popNode = ku_mmu_freeHeadAddress;
     void* getPgAddress = popNode->address;
     ku_mmu_freeHeadAddress = ku_mmu_freeHeadAddress->next;
     free(popNode);
@@ -67,7 +67,7 @@ void* popFreeList(){
     return getPgAddress;
 }
 void addSwapList(void* address){
-    node* addNode = (node*)malloc((sizeof(node)));
+    ku_mmu_node* addNode = (ku_mmu_node*)malloc((sizeof(ku_mmu_node)));
     addNode->address = address;
     addNode->next = NULL;
     ku_mmu_swapTailAddress->next = addNode;
@@ -75,7 +75,7 @@ void addSwapList(void* address){
 }
 
 void* popSwapList(){
-    node* popNode = ku_mmu_swapHeadAddress;
+    ku_mmu_node* popNode = ku_mmu_swapHeadAddress;
     void* getSwapAddress = popNode->address;
     ku_mmu_swapHeadAddress = ku_mmu_swapHeadAddress->next;
     free(popNode);
@@ -83,8 +83,8 @@ void* popSwapList(){
     return getSwapAddress;
 }
 
-data* popUsePage(){
-    data* popData;
+ku_mmu_data* popUsePage(){
+    ku_mmu_data* popData;
     if(ku_mmu_usingPageHead == NULL){
         popData = NULL;
     }else{
@@ -96,7 +96,7 @@ data* popUsePage(){
 }
 
 void addUsePage(void* pageAddress, char* bit){
-    data* addAddress = (data*)malloc(sizeof(data));
+    ku_mmu_data* addAddress = (ku_mmu_data*)malloc(sizeof(ku_mmu_data));
     addAddress->address = pageAddress;
     addAddress->pte = bit;
     addAddress->next = NULL;
@@ -109,14 +109,14 @@ void addUsePage(void* pageAddress, char* bit){
     }
 }
 
-node* swapList(int pageNum){
-    node* current;
-    node* head = (node*)malloc(sizeof(node));
+ku_mmu_node* swapList(int pageNum){
+    ku_mmu_node* current;
+    ku_mmu_node* head = (ku_mmu_node*)malloc(sizeof(ku_mmu_node));
     head->address = ku_mmu_swapSpace + 4;
     head->next = NULL;
     current = head;
     for(int i = 4; i < 4 * pageNum - 4; i+=4){
-        node* newNode = (node*)malloc(sizeof(node));
+        ku_mmu_node* newNode = (ku_mmu_node*)malloc(sizeof(ku_mmu_node));
         newNode->address = ku_mmu_swapSpace + 4 + i;
         newNode->next = NULL;
         if(i == 4 * pageNum - 8){
@@ -130,14 +130,14 @@ node* swapList(int pageNum){
     return head;
 }
 
-node* freeList(int pageNum){
-    node* current;
-    node* head = (node*)malloc(sizeof(node));
+ku_mmu_node* freeList(int pageNum){
+    ku_mmu_node* current;
+    ku_mmu_node* head = (ku_mmu_node*)malloc(sizeof(ku_mmu_node));
     head->address = ku_mmu_pmem + 4;
     head->next = NULL;
     current = head;
     for(int i = 4; i < 4 * pageNum - 4; i+=4){
-        node* newNode = (node*)malloc(sizeof(node));
+        ku_mmu_node* newNode = (ku_mmu_node*)malloc(sizeof(ku_mmu_node));
         newNode->address = ku_mmu_pmem + 4 + i;
         newNode->next = NULL;
         if(i == 4 * pageNum - 8){
@@ -164,7 +164,7 @@ void* ku_mmu_init(unsigned int pmemSize, unsigned int swapSize){
     memset(ku_mmu_pmem, 0, pmemSize);
     ku_mmu_freeHeadAddress = freeList(pageNum);
     ku_mmu_swapHeadAddress = swapList(swapSpaceNum);
-    ku_mmu_pcbHead = (ku_pcb *)malloc(sizeof(ku_pcb));
+    ku_mmu_pcbHead = (ku_mmu_pcb *)malloc(sizeof(ku_mmu_pcb));
     ku_mmu_pcbHead->pid = 0;
     ku_mmu_pcbHead->pdbr = NULL;
     ku_mmu_pcbHead->next = NULL;
@@ -174,8 +174,8 @@ void* ku_mmu_init(unsigned int pmemSize, unsigned int swapSize){
 }
 
 int ku_run_proc(char pid, void** ku_cr3){
-    ku_pcb* tmp = (ku_pcb*)malloc(sizeof(ku_pcb));
-    ku_pcb* check = searchPCB(pid);
+    ku_mmu_pcb* tmp = (ku_mmu_pcb*)malloc(sizeof(ku_mmu_pcb));
+    ku_mmu_pcb* check = searchPCB(pid);
     if(check == NULL){
         tmp->pid = pid;
         tmp->pdbr = popFreeList();
@@ -189,7 +189,7 @@ int ku_run_proc(char pid, void** ku_cr3){
 }
 
 int ku_page_fault(char pid, char va){
-    ku_pcb* tmp = searchPCB(pid);
+    ku_mmu_pcb* tmp = searchPCB(pid);
     char pdIndex = (va & 0b11000000) >> 6;
     char pmdIndex = (va & 0b00110000) >> 4;
     char ptIndex = (va & 0b00001100) >> 2;
@@ -201,7 +201,7 @@ int ku_page_fault(char pid, char va){
     char pde;
     char pmde;
     char pte;
-    data* popPage;
+    ku_mmu_data* popPage;
     void* popSwap;
     unsigned int swapData;
     unsigned int pmemData;
