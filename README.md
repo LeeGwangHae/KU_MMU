@@ -6,7 +6,7 @@
 ## To execute
 + [./실행 파일 이름] [input.txt] [physical memory 크기] [swap space 크기]
 ## input.txt 형식
-pid va
+pid va  
 1 10  
 1 20  
 1 100  
