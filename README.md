@@ -1,7 +1,6 @@
-# KU_MMU
-Basic design
+# 2021 Operating System First Assignment KU_MMU  
+##Basic design  
 ![운영체제 디자인](https://user-images.githubusercontent.com/62276222/117556268-fb767600-b0a1-11eb-8b85-ca377e4dd1fa.jpg)
-
 ## For compile
 + gcc -o [실행 파일 이름] ku_cpu.c ku_trav.o
 ## To execute
@@ -15,12 +14,3 @@ pid va
 .  
 2 20  
 2 10 -> 예시 값들은 형식이 맞다면 임의 변경 가능
-## 1. KU_MMU_init
-+ init freeList
-+ init swap space
-
-## 2. KU_run_proc
-
-
-## 3. KU_page_fault
-
