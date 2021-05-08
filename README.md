@@ -1,5 +1,5 @@
 # 2021 Operating System First Assignment KU_MMU  
-##Basic design  
+## Basic design  
 ![운영체제 디자인](https://user-images.githubusercontent.com/62276222/117556268-fb767600-b0a1-11eb-8b85-ca377e4dd1fa.jpg)
 ## For compile
 + gcc -o [실행 파일 이름] ku_cpu.c ku_trav.o
